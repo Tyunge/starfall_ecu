@@ -1,0 +1,56 @@
+--@name Piston
+--@author
+--@server
+--@include engine_ecu/entities/entity.txt
+dofile('engine_ecu/entities/entity.txt')
+
+
+function bearing(origin_pos, origin_angle, pos)
+    local pos = worldToLocal(pos,Angle(),origin_pos,origin_angle)
+    return (180/math.pi)*-math.atan2(pos.y,pos.x)
+end
+
+Piston = class('Piston',Entity)
+function Piston:initialize()
+    self.mass = 0
+    self.inertia = Vector(0.1,1,1)
+    self.entity = nil
+    self.local_attachment_pos = Vector()
+    self.crank = nil
+end
+
+function Piston:setLocalAttachmentPos(v)
+    self.local_attachment_pos = v
+end
+
+function Piston:getLocalAttachmentPos()
+    return self.local_attachment_pos
+end
+
+function Piston:setCrank(e)
+    self.crank = e
+end
+
+function Piston:getCrank()
+    return self.crank
+end
+
+function Piston:getTiming()
+    local timing = 0
+    local lPos = self.crank:worldToLocal(self.entity:getPos())
+    timing = bearing(Vector(), (self.local_attachment_pos-(self.local_attachment_pos*Vector(0,0,1))):getAngle(),-lPos)
+    
+    return timing
+end
+
+function Piston:firePiston(force)
+    local sin = math.sin( math.rad(self:getTiming()) )
+    local dir = self.entity:localToWorld(Vector(0,0,1))-self.entity:getPos()
+        dir.x = math.abs(dir.x)
+        dir.y = math.abs(dir.y)
+        dir.z = math.abs(dir.z)
+    self.entity:applyForceCenter(self.entity:getUp()*sin*force)
+    
+end
+    
+--PistonEntity:toWorldAxis(PistonIgnitionDirection)

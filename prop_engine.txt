@@ -1,0 +1,90 @@
+--@name Prop Engine
+--@author
+--@server
+--@includedir engine_ecu/entities
+dofile('engine_ecu/entities/piston.txt')
+dofile('engine_ecu/entities/crank.txt')
+
+wire.adjustInputs({'Crank','POD'},{'Entity','Wirelink'})
+wire.adjustOutputs({'RPM','Throttle','Debug'},{'number','number','number'})
+
+local POWER = 8000
+local IDLE  = 400
+local REDLINE = 2500
+
+local POD = nil
+local CRANK = nil
+local PISTONS = {}
+
+local THROTTLE = 0
+
+hook.add('input','getInputs',function(inp,val)
+    if inp == 'Crank' and val:isValid() then
+        CRANK = Crank:new()
+        CRANK:setEntity(val)
+        CRANK:setMass(50)
+        CRANK:getEntity():setCollisionGroup(10)
+        CRANK:setSound('acf_extra/vehiclefx/engines/v12/Zonda_on_high.wav')
+        
+        local constraint_table = constraint.getTable(val)
+        for k, constraint_data in pairs(constraint_table) do
+            if constraint_data.Type == 'Rope' then
+                ent1_data = constraint_data.Entity[1]
+                ent2_data = constraint_data.Entity[2]
+                
+                if ent1_data.Entity == val then
+                    local PISTON = Piston:new()
+                    PISTON:setEntity(ent2_data.Entity)
+                    PISTON:setLocalAttachmentPos(ent1_data.LPos)
+                    PISTON:setCrank(val)
+                    PISTON:setMass(3)
+                    PISTON:getEntity():setCollisionGroup(10)
+                    table.insert(PISTONS,PISTON)
+                else
+                    local PISTON = Piston:new()
+                    PISTON:setEntity(ent1_data.Entity)
+                    PISTON:setLocalAttachmentPos(ent2_data.LPos)
+                    PISTON:setCrank(val)
+                    PISTON:setMass(3)
+                    PISTON:getEntity():setCollisionGroup(10)
+                    table.insert(PISTONS,PISTON)
+                end
+            end
+        end
+        
+    end
+    
+    if inp == 'POD' then
+        POD = wire.ports.POD
+    end    
+end)
+
+hook.add('tick','main',function()
+    if CRANK == nil then return end
+    local engine_rpm = CRANK:getRPM()
+    
+    if type(POD) == 'Wirelink' then
+    
+        THROTTLE = math.approach(THROTTLE, ((0.75+(POD.Alt*0.25))*POD.W), 1/16)
+        wire.ports.Throttle = THROTTLE
+        
+        if engine_rpm > REDLINE then THROTTLE = 0 end 
+         
+    end
+    
+
+    wire.ports.RPM = engine_rpm
+  
+    local force = POWER*THROTTLE
+    
+    local rpm_delta = CRANK:getDelta()
+    
+    wire.ports.Debug = rpm_delta
+    
+    CRANK:getSound():setPitch( (engine_rpm/REDLINE)*200 )
+    CRANK:getSound():setVolume( 0.35+(THROTTLE*0.65) )
+    
+    for k, p in pairs(PISTONS) do   
+        p:firePiston(-force)
+    end
+end)

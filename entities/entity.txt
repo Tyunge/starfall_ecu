@@ -1,0 +1,39 @@
+--@name Entity
+--@author
+--@server
+
+Entity = class('Entity')
+function Entity:initialize()
+    self.mass = 0
+    self.inertia = Vector()
+    self.entity = nil
+end
+
+function Entity:getMass()
+    return self.mass
+end
+
+function Entity:getInertia()
+    return self.inertia
+end
+
+function Entity:getEntity()
+    return self.entity
+end
+
+function Entity:setMass(n)
+    self.mass = n
+    self.entity:setMass(n)
+end
+
+function Entity:setInertia(vec)
+    self.inertia = vec
+    self.entity:setInertia(vec)
+end
+
+function Entity:setEntity(e)
+    self.entity = e
+    self.entity:setInertia(self.inertia)
+    self.entity:enableDrag(false)
+    self.entity:enableGravity(false)
+end
